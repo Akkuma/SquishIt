@@ -3,20 +3,20 @@ using System.Collections.Generic;
 using System.Web;
 using System.Web.Caching;
 
-namespace SquishIt.Framework
+namespace SquishIt.Framework.Cachers
 {
-    public class BundleCache: IBundleCache
+    public class ApplicationCache: ICacher
     {
         private const string KEY_PREFIX = "squishit_";
 
-        private List<string> CacheKeys = new List<string>();
+        private static List<string> CacheKeys = new List<string>();
 
-        public string GetContent(string name)
+        public string Get(string name)
         {
             return (string)HttpRuntime.Cache[KEY_PREFIX + name];
         }
 
-        public void ClearTestingCache()
+        public void Clear()
         {
             foreach (var key in CacheKeys)
             {

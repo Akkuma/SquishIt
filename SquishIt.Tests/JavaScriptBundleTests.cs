@@ -411,12 +411,14 @@ namespace SquishIt.Tests
         [Test]
         public void CanCreateCachedBundleAssetTag()
         {
+            javaScriptBundle.ClearCache();
+
             javaScriptBundle
                     .Add("~/js/test.js")
                     .AsCached("Test", "~/assets/js/main");
 
             var content = javaScriptBundle.RenderCached("Test");
-            javaScriptBundle.ClearCache();
+
             var tag = javaScriptBundle.RenderCachedAssetTag("Test");
 
             Assert.AreEqual("<script type=\"text/javascript\" src=\"assets/js/main?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
@@ -426,6 +428,8 @@ namespace SquishIt.Tests
         [Test]
         public void CanCreateCachedBundleWithDebug()
         {
+            javaScriptBundle.ClearCache();
+
             var tag = debugJavaScriptBundle
                     .Add("~/js/test.js")
                     .AsCached("Test", "~/js/output_2.js");

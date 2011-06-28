@@ -747,6 +747,8 @@ namespace SquishIt.Tests
                 .WithContents(css)
                 .Create();
 
+            cssBundle.ClearCache();
+
             string tag = cssBundle
                 .Add("~/css/temp.css")
                 .AsCached("TestCached", "~/static/css/TestCached.css");
@@ -766,12 +768,13 @@ namespace SquishIt.Tests
                 .WithContents(css)
                 .Create();
 
+            cssBundle.ClearCache();
+
             cssBundle
                 .Add("~/css/temp.css")
                 .AsCached("TestCached", "~/static/css/TestCached.css");
 
-            string contents = cssBundle.RenderCached("TestCached");
-            cssBundle.ClearCache();
+            string contents = cssBundle.RenderCached("TestCached");            
             string tag = cssBundle.RenderCachedAssetTag("TestCached");
 
             Assert.AreEqual("li{margin-bottom:.1em;margin-left:0;margin-top:.1em}th{font-weight:normal;vertical-align:bottom}.FloatRight{float:right}.FloatLeft{float:left}", contents);
@@ -785,6 +788,8 @@ namespace SquishIt.Tests
                 .WithDebuggingEnabled(true)
                 .WithContents(css)
                 .Create();
+
+            cssBundle.ClearCache();
 
             string tag = cssBundle
                 .Add("~/css/temp.css")

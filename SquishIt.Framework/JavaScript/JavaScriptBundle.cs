@@ -1,5 +1,6 @@
 using System;
 using SquishIt.Framework.Base;
+using SquishIt.Framework.Cachers;
 using SquishIt.Framework.Files;
 using SquishIt.Framework.Minifiers;
 using SquishIt.Framework.Minifiers.JavaScript;
@@ -18,16 +19,16 @@ namespace SquishIt.Framework.JavaScript
     	}
 
     	public JavaScriptBundle()
-            : base(new FileWriterFactory(new RetryableFileOpener(), 5), new FileReaderFactory(new RetryableFileOpener(), 5), new DebugStatusReader(), new CurrentDirectoryWrapper(), new Hasher(new RetryableFileOpener()), new BundleCache())
+            : base(new FileWriterFactory(new RetryableFileOpener(), 5), new FileReaderFactory(new RetryableFileOpener(), 5), new DebugStatusReader(), new CurrentDirectoryWrapper(), new Hasher(new RetryableFileOpener()), CacherFactory.Get<ApplicationCache>())
         {
         }
 
     	public JavaScriptBundle(IDebugStatusReader debugStatusReader)
-            : base(new FileWriterFactory(new RetryableFileOpener(), 5), new FileReaderFactory(new RetryableFileOpener(), 5), debugStatusReader, new CurrentDirectoryWrapper(), new Hasher(new RetryableFileOpener()), new BundleCache())
+            : base(new FileWriterFactory(new RetryableFileOpener(), 5), new FileReaderFactory(new RetryableFileOpener(), 5), debugStatusReader, new CurrentDirectoryWrapper(), new Hasher(new RetryableFileOpener()), CacherFactory.Get<ApplicationCache>())
         {
         }
 
-    	public JavaScriptBundle(IDebugStatusReader debugStatusReader, IFileWriterFactory fileWriterFactory, IFileReaderFactory fileReaderFactory, ICurrentDirectoryWrapper currentDirectoryWrapper, IHasher hasher, IBundleCache bundleCache): 
+    	public JavaScriptBundle(IDebugStatusReader debugStatusReader, IFileWriterFactory fileWriterFactory, IFileReaderFactory fileReaderFactory, ICurrentDirectoryWrapper currentDirectoryWrapper, IHasher hasher, ICacher bundleCache): 
             base(fileWriterFactory, fileReaderFactory, debugStatusReader, currentDirectoryWrapper, hasher, bundleCache)
         {
         }
