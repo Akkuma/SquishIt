@@ -1,18 +1,19 @@
 using System.Collections.Generic;
 using SquishIt.Framework;
+using SquishIt.Framework.Cachers;
 
 namespace SquishIt.Tests.Stubs
 {
-	public class StubBundleCache: IBundleCache
+	public class StubBundleCache: ICacher
 	{
 		private Dictionary<string, string> cache = new Dictionary<string, string>();
 
-		public string GetContent(string name)
+		public string Get(string name)
 		{
 			return cache[name];
 		}
 
-		public void ClearTestingCache()
+		public void Clear()
 		{
 			cache = new Dictionary<string, string>();
 		}

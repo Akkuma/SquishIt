@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using dotless.Core;
 using SquishIt.Framework.Base;
+using SquishIt.Framework.Cachers;
 using SquishIt.Framework.Minifiers;
 using SquishIt.Framework.Minifiers.CSS;
 using SquishIt.Framework.Resolvers;
@@ -39,17 +40,17 @@ namespace SquishIt.Framework.CSS
     	}
 
     	public CSSBundle()
-            : base(new FileWriterFactory(new RetryableFileOpener(), 5), new FileReaderFactory(new RetryableFileOpener(), 5), new DebugStatusReader(), new CurrentDirectoryWrapper(), new Hasher(new RetryableFileOpener()), new BundleCache())
+            : base(new FileWriterFactory(new RetryableFileOpener(), 5), new FileReaderFactory(new RetryableFileOpener(), 5), new DebugStatusReader(), new CurrentDirectoryWrapper(), new Hasher(new RetryableFileOpener()), CacherFactory.Get<ApplicationCache>())
         {
         }
 
     	public CSSBundle(IDebugStatusReader debugStatusReader)
-            : base(new FileWriterFactory(new RetryableFileOpener(), 5), new FileReaderFactory(new RetryableFileOpener(), 5), debugStatusReader, new CurrentDirectoryWrapper(), new Hasher(new RetryableFileOpener()), new BundleCache())
+            : base(new FileWriterFactory(new RetryableFileOpener(), 5), new FileReaderFactory(new RetryableFileOpener(), 5), debugStatusReader, new CurrentDirectoryWrapper(), new Hasher(new RetryableFileOpener()), CacherFactory.Get<ApplicationCache>())
         {
         }
 
-    	public CSSBundle(IDebugStatusReader debugStatusReader, IFileWriterFactory fileWriterFactory, IFileReaderFactory fileReaderFactory, ICurrentDirectoryWrapper currentDirectoryWrapper, IHasher hasher, IBundleCache bundleCache)
-            : base(fileWriterFactory, fileReaderFactory, debugStatusReader, currentDirectoryWrapper, hasher, bundleCache)
+    	public CSSBundle(IDebugStatusReader debugStatusReader, IFileWriterFactory fileWriterFactory, IFileReaderFactory fileReaderFactory, ICurrentDirectoryWrapper currentDirectoryWrapper, IHasher hasher, ICacher cacher)
+            : base(fileWriterFactory, fileReaderFactory, debugStatusReader, currentDirectoryWrapper, hasher, cacher)
         {
         }
 

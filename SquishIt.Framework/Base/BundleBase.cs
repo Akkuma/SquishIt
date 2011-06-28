@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Web;
+using SquishIt.Framework.Cachers;
 using SquishIt.Framework.Minifiers;
 using SquishIt.Framework.Resolvers;
 using SquishIt.Framework.Renderers;
@@ -20,6 +21,7 @@ namespace SquishIt.Framework.Base
         protected IDebugStatusReader debugStatusReader;
         protected ICurrentDirectoryWrapper currentDirectoryWrapper;
         protected IHasher hasher;
+        protected ICacher cacher;
         protected abstract IMinifier<T> DefaultMinifier { get; }
         private IMinifier<T> minifier;
         protected IMinifier<T> Minifier
@@ -39,18 +41,16 @@ namespace SquishIt.Framework.Base
             { DEFAULT_GROUP, new GroupBundle() }
         };
 
-        private IBundleCache bundleCache;
-
-        protected BundleBase(IFileWriterFactory fileWriterFactory, IFileReaderFactory fileReaderFactory, IDebugStatusReader debugStatusReader, ICurrentDirectoryWrapper currentDirectoryWrapper, IHasher hasher, IBundleCache bundleCache)
+        protected BundleBase(IFileWriterFactory fileWriterFactory, IFileReaderFactory fileReaderFactory, IDebugStatusReader debugStatusReader, ICurrentDirectoryWrapper currentDirectoryWrapper, IHasher hasher, ICacher cacher)
         {
             this.fileWriterFactory = fileWriterFactory;
             this.fileReaderFactory = fileReaderFactory;
             this.debugStatusReader = debugStatusReader;
             this.currentDirectoryWrapper = currentDirectoryWrapper;
             this.hasher = hasher;
+            this.cacher = cacher;
             ShouldRenderOnlyIfOutputFileIsMissing = false;
             HashKeyName = "r";
-            this.bundleCache = bundleCache;
         }
 
         private List<string> GetFiles(List<Asset> assets)
@@ -236,23 +236,23 @@ namespace SquishIt.Framework.Base
         public string Render(string renderTo)
         {
             string key = renderTo + GroupBundles.GetHashCode();
-            return Render(renderTo, key, new FileRenderer(fileWriterFactory));
+            return Render(renderTo, key, new FileRenderer(fileWriterFactory), cacher);
         }
 
-        private string Render(string renderTo, string key, IRenderer renderer)
+        private string Render(string renderTo, string key, IRenderer renderer, ICacher cacher)
         {
             key = CachePrefix + key;
 
             if (debugStatusReader.IsDebuggingEnabled())
             {
-                return RenderDebug(key);
+                return RenderDebug(key, cacher);
             }
-            return RenderRelease(key, renderTo, renderer);
+            return RenderRelease(key, renderTo, renderer, cacher);
         }
 
         public string RenderNamed(string name)
         {
-            return bundleCache.GetContent(CachePrefix + name);
+            return CacherFactory.Get<MemoryCache>().Get(CachePrefix + name);
         }
 
         public string RenderCached(string name)
@@ -262,23 +262,24 @@ namespace SquishIt.Framework.Base
 
         public string RenderCachedAssetTag(string name)
         {
-            return Render(null, name, new CacheRenderer(CachePrefix, name));
+            return CacherFactory.Get<MemoryCache>().Get(CachePrefix + name);
+            //return Render(null, name, new CacheRenderer(CachePrefix, name), CacherFactory.Get<MemoryCache>());
         }
 
         public void AsNamed(string name, string renderTo)
         {
-            Render(renderTo, name, new FileRenderer(fileWriterFactory));
+            Render(renderTo, name, new FileRenderer(fileWriterFactory), CacherFactory.Get<MemoryCache>());
         }
 
         public string AsCached(string name, string filePath)
         {
-            return Render(filePath, name, new CacheRenderer(CachePrefix, name));
+            return Render(filePath, name, new CacheRenderer(CachePrefix, name), CacherFactory.Get<MemoryCache>());
         }
 
-        protected string RenderDebug(string name = null)
+        protected string RenderDebug(string name, ICacher cacher)
         {
             string content = null;
-            if (!bundleCache.TryGetValue(name, out content))
+            if (!cacher.TryGetValue(name, out content))
             {
                 DependentFiles.Clear();
 
@@ -313,16 +314,16 @@ namespace SquishIt.Framework.Base
                 }
 
                 content = sb.ToString();
-                bundleCache.Add(name, content, DependentFiles);
+                cacher.Add(name, content, DependentFiles);
             }
 
             return content;
         }
 
-        private string RenderRelease(string key, string renderTo, IRenderer renderer)
+        private string RenderRelease(string key, string renderTo, IRenderer renderer, ICacher cacher)
         {
-            string content;
-            if (!bundleCache.TryGetValue(key, out content))
+            string content = null;
+            if (!cacher.TryGetValue(key, out content))
             {
                 var files = new List<string>();
                 foreach (var groupBundleKVP in GroupBundles)
@@ -414,7 +415,7 @@ namespace SquishIt.Framework.Base
                     content += String.Concat(GetFilesForRemote(remoteAssetPaths, groupBundle), renderedTag);
                 }
 
-                bundleCache.Add(key, content, DependentFiles);
+                cacher.Add(key, content, DependentFiles);
             }
 
             return content;
@@ -422,7 +423,8 @@ namespace SquishIt.Framework.Base
 
         public void ClearCache()
         {
-            bundleCache.ClearTestingCache();
+            CacherFactory.Get<ApplicationCache>().Clear();
+            CacherFactory.Get<MemoryCache>().Clear();
         }
 
         private void AddAttributes(Dictionary<string, string> attributes, string group = DEFAULT_GROUP, bool merge = true)

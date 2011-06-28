@@ -86,10 +86,12 @@
     <Compile Include="Base\BundleBase.cs" />
     <Compile Include="Base\GroupBundle.cs" />
     <Compile Include="Base\IBundle.cs" />
-    <Compile Include="IBundleCache.cs" />
+    <Compile Include="Cachers\MemoryCache.cs" />
+    <Compile Include="Cachers\ICacher.cs" />
+    <Compile Include="Cachers\CacherFactory.cs" />
     <Compile Include="Minifiers\IMinifier.cs" />
     <Compile Include="Bundle.cs" />
-    <Compile Include="BundleCache.cs" />
+    <Compile Include="Cachers\ApplicationCache.cs" />
     <Compile Include="Css\CssBundle.cs" />
     <Compile Include="Css\CssPathRewriter.cs" />
     <Compile Include="Directories\Directory.cs" />

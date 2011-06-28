@@ -1,4 +1,5 @@
 using SquishIt.Framework;
+using SquishIt.Framework.Cachers;
 using SquishIt.Framework.CSS;
 using SquishIt.Framework.Files;
 using SquishIt.Framework.Tests.Mocks;
@@ -14,7 +15,7 @@ namespace SquishIt.Tests.Helpers
         private IFileReaderFactory fileReaderFactory = new StubFileReaderFactory();
         private ICurrentDirectoryWrapper currentDirectoryWrapper = new StubCurrentDirectoryWrapper();
         private IHasher hasher = new StubHasher("hash");
-    	private IBundleCache bundleCache = new StubBundleCache();
+    	private ICacher bundleCache = new StubBundleCache();
 
         public StubFileReaderFactory FileReaderFactory { get { return fileReaderFactory as StubFileReaderFactory; } }
         public StubFileWriterFactory FileWriterFactory { get { return fileWriterFactory as StubFileWriterFactory; } }
