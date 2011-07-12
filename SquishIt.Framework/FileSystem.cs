@@ -6,6 +6,8 @@ namespace SquishIt.Framework
 {
     public class FileSystem
     {
+        internal static string TempFilePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+
         public static bool Unix
         {
             //assuming this means mono, hoping to avoid a compiler directive / separate assemblies
@@ -22,14 +24,25 @@ namespace SquishIt.Framework
 
             if (HttpContext.Current == null)
             {
-                if (!(Unix))
+                if (!Unix)
                 {
-                    file = file.Replace("/", "\\").TrimStart('~').TrimStart('\\');
-                    return @"C:\" + file.Replace("/", "\\");
+                    file = file.Replace("/", "\\");
+                    var hasProtocol = file.Contains(":");
+                    if (!hasProtocol)
+                    {
+                        file = file.TrimStart('~').TrimStart('\\');
+                        return @"C:\" + file;
+                    }
+                    else 
+                    {
+                        return file;
+                    }
                 }
+
                 file = file.TrimStart('~', '/');
                 return Path.Combine(Environment.CurrentDirectory, file);
             }
+
             return HttpContext.Current.Server.MapPath(file);
         }
     }

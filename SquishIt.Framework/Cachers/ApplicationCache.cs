@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Web;
 using System.Web.Caching;
+using SquishIt.Framework.Base;
 
 namespace SquishIt.Framework.Cachers
 {
@@ -11,9 +12,9 @@ namespace SquishIt.Framework.Cachers
 
         private static List<string> CacheKeys = new List<string>();
 
-        public string Get(string name)
+        public T Get<T>(string name) where T : BundleBase<T>
         {
-            return (string)HttpRuntime.Cache[KEY_PREFIX + name];
+            return (T)HttpRuntime.Cache[KEY_PREFIX + name];
         }
 
         public void Clear()
@@ -22,6 +23,8 @@ namespace SquishIt.Framework.Cachers
             {
                 HttpRuntime.Cache.Remove(key);
             }
+
+            CacheKeys.Clear();
         }
 
         public bool ContainsKey(string key)
@@ -29,21 +32,31 @@ namespace SquishIt.Framework.Cachers
             return HttpRuntime.Cache[KEY_PREFIX + key] != null;
         }
 
-        public bool TryGetValue(string key, out string content)
+        public bool TryGetValue<T>(string key, out T bundle) where T : BundleBase<T>
         {
-            content = (string)HttpRuntime.Cache[KEY_PREFIX + key];
+            bundle = (T)HttpRuntime.Cache[KEY_PREFIX + key];
 
-            return content != null;
+            return bundle != null;
         }
 
-        public void Add(string key, string content, List<string> files)
+        public void Add<T>(string key, T currentBundle) where T : BundleBase<T>
         {
-            CacheKeys.Add(KEY_PREFIX + key);
-            HttpRuntime.Cache.Add(KEY_PREFIX + key, content, new CacheDependency(files.ToArray()),
-                                            Cache.NoAbsoluteExpiration, 
-                                            new TimeSpan(365, 0, 0, 0),
-                                            CacheItemPriority.NotRemovable,
-                                            null);
+            key = KEY_PREFIX + key;
+            CacheKeys.Add(key);
+            HttpRuntime.Cache.Add(key, currentBundle, new CacheDependency(currentBundle.DependentFiles.ToArray()),
+                                    Cache.NoAbsoluteExpiration, 
+                                    new TimeSpan(365, 0, 0, 0),
+                                    CacheItemPriority.NotRemovable,
+                                    Refresh<T>);
+        }
+        
+        private void Refresh<T>(string key, object value, CacheItemRemovedReason removedReason) where T : BundleBase<T>
+        {
+            if (removedReason != CacheItemRemovedReason.Removed)
+            {
+                var bundle = (T)value;
+                bundle.Render(bundle.RenderTo, bundle.Named, bundle.Renderer, bundle.Cacher);
+            }
         }
     }
 }

@@ -23,7 +23,7 @@ namespace SquishIt.Tests.Helpers
         //This is lazy, but I don't have a need for command line tool at present
         public static string PreparePathRelativeToWorkingDirectory(string windowsPath)
         {
-            var path = windowsPath;
+            var path = FileSystem.TempFilePath + windowsPath;
             if (FileSystem.Unix)
             {
                 var extendedPath = PreparePath(path);

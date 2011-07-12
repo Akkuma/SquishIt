@@ -38,7 +38,7 @@ namespace SquishIt.Framework.JavaScript
             get { return JS_TEMPLATE; }
         }
 
-        protected override string CachePrefix
+        internal override string CachePrefix
         {
             get { return CACHE_PREFIX; }
         }

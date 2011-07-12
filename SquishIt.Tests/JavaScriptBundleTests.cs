@@ -1,4 +1,9 @@
 using NUnit.Framework;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using SquishIt.Framework;
+using SquishIt.Framework.Cachers;
 using SquishIt.Framework.Files;
 using SquishIt.Framework.JavaScript;
 using SquishIt.Framework.Minifiers.JavaScript;
@@ -12,15 +17,14 @@ namespace SquishIt.Tests
     [TestFixture]
     public class JavaScriptBundleTests
     {
-        private string javaScript = TestUtilities.NormalizeLineEndings(@"
-																				function product(a, b)
-																				{
-																						return a * b;
-																				}
+        private static string TEST1_UNMINIFIED = TestUtilities.NormalizeLineEndings(@"function product(a, b) {
+	return a * b;
+}
 
-																				function sum(a, b){
-																						return a + b;
-																				}");
+function sum(a, b) {
+	return a + b;
+}
+");
 
         private string javaScript2 = TestUtilities.NormalizeLineEndings(@"function sum(a, b){
 																						return a + b;
@@ -30,26 +34,51 @@ namespace SquishIt.Tests
         private JavaScriptBundle javaScriptBundle2;
         private JavaScriptBundle debugJavaScriptBundle;
         private JavaScriptBundle debugJavaScriptBundle2;
-        private StubFileWriterFactory fileWriterFactory;
-        private StubFileReaderFactory fileReaderFactory;
+        private FileWriterFactory fileWriterFactory;
+        private FileReaderFactory fileReaderFactory;
         private StubCurrentDirectoryWrapper currentDirectoryWrapper;
         private IHasher hasher;
-        private StubBundleCache stubBundleCache;
+        private ApplicationCache stubBundleCache;
+        private string FilePath = FileSystem.TempFilePath;
+        private string Test1Path;
+        private string Test2Path;
+        private string TestUnderscoresPath;
+        private string EmbeddedResourcePath;
+
+        private const string TEST1_MINIFIED = "function product(a,b){return a*b}function sum(a,b){return a+b}";
+        private const string TEST2_MINIFIED = "function sum(a,b){return a+b}";
+        private const string JSMIN_MINIFIED = "\nfunction product(a,b){return a*b;}\nfunction sum(a,b){return a+b;}";
+        private string minifiedOutput;
+
+        private int outputFileNumber = 0;
+        private string outputFileRoot = TestUtilities.PreparePathRelativeToWorkingDirectory(@"\js\output_");
+        private string currentOutputFile;
+
+        private string ResolveToCurrentDirectory(string filePath)
+        {
+            return Environment.CurrentDirectory + filePath;
+        }
+
+        private string GetResolvedTag(string filePath)
+        {
+            return String.Format("<script type=\"text/javascript\" src=\"{0}\"></script>", filePath);
+        }
+
 
         [SetUp]
         public void Setup()
         {
             var nonDebugStatusReader = new StubDebugStatusReader(false);
             var debugStatusReader = new StubDebugStatusReader(true);
-            fileWriterFactory = new StubFileWriterFactory();
-            fileReaderFactory = new StubFileReaderFactory();
+            fileWriterFactory = new FileWriterFactory(new RetryableFileOpener(), 5);
+            fileReaderFactory = new FileReaderFactory(new RetryableFileOpener(), 5);
             currentDirectoryWrapper = new StubCurrentDirectoryWrapper();
-            stubBundleCache = new StubBundleCache();
+            stubBundleCache = new ApplicationCache();
 
             var retryableFileOpener = new RetryableFileOpener();
             hasher = new Hasher(retryableFileOpener);
 
-            fileReaderFactory.SetContents(javaScript);
+            //fileReaderFactory.SetContents(javaScript);
 
             javaScriptBundle = new JavaScriptBundle(nonDebugStatusReader,
                                                         fileWriterFactory,
@@ -78,192 +107,229 @@ namespace SquishIt.Tests
                                                         currentDirectoryWrapper,
                                                         hasher,
                                                         stubBundleCache);
+
+            outputFileNumber += 1;
+            currentOutputFile = outputFileRoot + outputFileNumber + ".js";
+        }
+
+        [TearDown]
+        public void Clean()
+        {
+            if (File.Exists(currentOutputFile))
+            {
+                using (var fileReader = fileReaderFactory.GetFileReader(currentOutputFile))
+                {
+                    Assert.AreEqual(minifiedOutput ?? TEST1_MINIFIED, fileReader.ReadToEnd());
+                }
+            }
+
+            minifiedOutput = null;
+        }
+
+        [TestFixtureSetUp]
+        public void Init()
+        {
+            Test1Path = ResolveToCurrentDirectory(TestUtilities.PreparePath("/js/test1.js"));
+            Test2Path = ResolveToCurrentDirectory(TestUtilities.PreparePath("/js/test2.js"));
+            EmbeddedResourcePath = ResolveToCurrentDirectory(TestUtilities.PreparePath("/js/embedded.js"));
+            TestUnderscoresPath = ResolveToCurrentDirectory(TestUtilities.PreparePath("/js/test_underscores.js"));
+            Directory.CreateDirectory(FilePath + TestUtilities.PreparePath(@"\js"));
+        }
+
+        [TestFixtureTearDown]
+        public void Dispose()
+        {
+            Directory.Delete(FilePath, true);
         }
 
         [Test]
         public void CanBundleJavaScript()
         {
             var tag = javaScriptBundle
-                    .Add("~/js/test.js")
-                    .Render("~/js/output_1.js");
+                    .Add(Test1Path)
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_1.js?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_1.js")]);
+            Assert.AreEqual(GetResolvedTag(currentOutputFile + "?r=E36D384488ABCF73BCCE650C627FB74F"), tag);
+            //Assert.AreEqual(TEST1_MINIFIED, currentFileReader.ReadToEnd());
         }
 
+        
         [Test]
         public void CanBundleJavaScriptWithQuerystringParameter()
         {
             var tag = javaScriptBundle
-                    .Add("~/js/test.js")
-                    .Render("~/js/output_querystring.js?v=2");
+                    .Add(Test1Path)
+                    .Render(currentOutputFile + "?v=2");
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_querystring.js?v=2&r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
+            Assert.AreEqual(GetResolvedTag(currentOutputFile + "?r=E36D384488ABCF73BCCE650C627FB74F&v=2"), tag);
         }
-
+        
         [Test]
         public void CanCreateNamedBundle()
         {
             javaScriptBundle
-                    .Add("~/js/test.js")
-                    .AsNamed("TestNamed", "~/js/output_namedbundle.js");
+                    .Add(Test1Path)
+                    .AsNamed("TestNamed", currentOutputFile);
 
             var tag = javaScriptBundle.RenderNamed("TestNamed");
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_namedbundle.js?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_namedbundle.js")]);
+            Assert.AreEqual(GetResolvedTag(currentOutputFile + "?r=E36D384488ABCF73BCCE650C627FB74F"), tag);
+            //Assert.AreEqual(TEST1_MINIFIED, currentFileReader.ReadToEnd());
         }
 
         [Test]
         public void CanBundleJavaScriptWithRemote()
         {
             var tag = javaScriptBundle
-                    .AddRemote("~/js/test.js", "http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js")
-                    .Add("~/js/test.js")
-                    .Render("~/js/output_1_2.js");
+                    .AddRemote(Test1Path, "http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js")
+                    .Add(Test1Path)
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js\"></script><script type=\"text/javascript\" src=\"js/output_1_2.js?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_1_2.js")]);
+
+            Assert.AreEqual("<script type=\"text/javascript\" src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js\"></script>" + GetResolvedTag(currentOutputFile + "?r=E36D384488ABCF73BCCE650C627FB74F"), tag);
+            //Assert.AreEqual(TEST1_MINIFIED, currentFileReader.ReadToEnd());
         }
 
         [Test]
         public void CanBundleJavaScriptWithRemoteAndQuerystringParameter()
         {
             var tag = javaScriptBundle
-                    .AddRemote("~/js/test.js", "http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js")
-                    .Add("~/js/test.js")
-                    .Render("~/js/output_querystring.js?v=2_2");
+                    .AddRemote(Test1Path, "http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js")
+                    .Add(Test1Path)
+                    .Render(currentOutputFile + "?v=2_2");
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js\"></script><script type=\"text/javascript\" src=\"js/output_querystring.js?v=2_2&r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
+            Assert.AreEqual("<script type=\"text/javascript\" src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js\"></script>" + GetResolvedTag(currentOutputFile + "?r=E36D384488ABCF73BCCE650C627FB74F&v=2_2"), tag);
         }
 
         [Test]
         public void CanCreateNamedBundleWithRemote()
         {
             javaScriptBundle
-                    .AddRemote("~/js/test.js", "http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js")
-                    .Add("~/js/test.js")
-                    .AsNamed("TestCdn", "~/js/output_3_2.js");
+                    .AddRemote(Test1Path, "http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js")
+                    .Add(Test1Path)
+                    .AsNamed("TestCdn", currentOutputFile);
 
             var tag = javaScriptBundle.RenderNamed("TestCdn");
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js\"></script><script type=\"text/javascript\" src=\"js/output_3_2.js?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_3_2.js")]);
+            Assert.AreEqual("<script type=\"text/javascript\" src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js\"></script>" + GetResolvedTag(currentOutputFile + "?r=E36D384488ABCF73BCCE650C627FB74F"), tag);
         }
 
         [Test]
         public void CanBundleJavaScriptWithEmbeddedResource()
         {
             var tag = javaScriptBundle
-                    .AddEmbeddedResource("~/js/test.js", "SquishIt.Tests://EmbeddedResource.Embedded.js")
-                    .Render("~/js/output_Embedded.js");
+                    .AddEmbeddedResource(Test1Path, "SquishIt.Tests://js.embedded.js")
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_Embedded.js?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_Embedded.js")]);
+            Assert.AreEqual(GetResolvedTag(currentOutputFile + "?r=E36D384488ABCF73BCCE650C627FB74F"), tag);
         }
 
         [Test]
         public void CanDebugBundleJavaScriptWithEmbeddedResource()
         {
             var tag = debugJavaScriptBundle
-                    .AddEmbeddedResource("~/js/test.js", "SquishIt.Tests://EmbeddedResource.Embedded.js")
-                    .Render("~/js/output_Embedded.js");
+                    .AddEmbeddedResource(EmbeddedResourcePath, "SquishIt.Tests://js.embedded.js")
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/test.js\"></script>\n", tag);
+            Assert.AreEqual("<script type=\"text/javascript\" src=\""+ EmbeddedResourcePath + "\"></script>\n", tag);
         }
 
         [Test]
         public void CanRenderDebugTags()
         {
             debugJavaScriptBundle
-                    .Add("~/js/test1.js")
-                    .Add("~/js/test2.js")
-                    .AsNamed("TestWithDebug", "~/js/output_3.js");
+                    .Add(Test1Path)
+                    .Add(Test2Path)
+                    .AsNamed("TestWithDebug", currentOutputFile);
 
             var tag = debugJavaScriptBundle.RenderNamed("TestWithDebug");
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/test1.js\"></script>\n<script type=\"text/javascript\" src=\"js/test2.js\"></script>\n", tag);
+            Assert.AreEqual("<script type=\"text/javascript\" src=\"" + Test1Path + "\"></script>\n<script type=\"text/javascript\" src=\"" + Test2Path + "\"></script>\n", tag);
         }
 
         [Test]
         public void CanRenderDebugTagsTwice()
         {
             debugJavaScriptBundle
-                    .Add("~/js/test1.js")
-                    .Add("~/js/test2.js")
-                    .AsNamed("TestWithDebug", "~/js/output_4.js");
+                    .Add(Test1Path)
+                    .Add(Test2Path)
+                    .AsNamed("TestWithDebug", currentOutputFile);
 
             debugJavaScriptBundle2
-                    .Add("~/js/test1.js")
-                    .Add("~/js/test2.js")
-                    .AsNamed("TestWithDebug", "~/js/output_4.js");
+                    .Add(Test1Path)
+                    .Add(Test2Path)
+                    .AsNamed("TestWithDebug", currentOutputFile);
 
             var tag1 = debugJavaScriptBundle.RenderNamed("TestWithDebug");
             var tag2 = debugJavaScriptBundle2.RenderNamed("TestWithDebug");
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/test1.js\"></script>\n<script type=\"text/javascript\" src=\"js/test2.js\"></script>\n", tag1);
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/test1.js\"></script>\n<script type=\"text/javascript\" src=\"js/test2.js\"></script>\n", tag2);
+            Assert.AreEqual("<script type=\"text/javascript\" src=\"" + Test1Path + "\"></script>\n<script type=\"text/javascript\" src=\"" + Test2Path + "\"></script>\n", tag1);
+            Assert.AreEqual("<script type=\"text/javascript\" src=\"" + Test1Path + "\"></script>\n<script type=\"text/javascript\" src=\"" + Test2Path + "\"></script>\n", tag2);
         }
 
         [Test]
         public void CanCreateNamedBundleWithDebug()
         {
             debugJavaScriptBundle
-                    .Add("~/js/test1.js")
-                    .Add("~/js/test2.js")
-                    .AsNamed("NamedWithDebug", "~/js/output_5.js");
+                    .Add(Test1Path)
+                    .Add(Test2Path)
+                    .AsNamed("NamedWithDebug", currentOutputFile);
 
             var tag = debugJavaScriptBundle.RenderNamed("NamedWithDebug");
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/test1.js\"></script>\n<script type=\"text/javascript\" src=\"js/test2.js\"></script>\n", tag);
+            Assert.AreEqual("<script type=\"text/javascript\" src=\"" + Test1Path + "\"></script>\n<script type=\"text/javascript\" src=\"" + Test2Path + "\"></script>\n", tag);
         }
 
         [Test]
         public void CanCreateBundleWithNullMinifer()
         {
             var tag = javaScriptBundle
-                    .Add("~/js/test.js")
+                    .Add(Test1Path)
                     .WithMinifier<NullMinifier>()
-                    .Render("~/js/output_6.js");
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_6.js?r=1C5788F076B8F8FB10AF9A76E7B822CB\"></script>", tag);
-            Assert.AreEqual(javaScript + "\n", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_6.js")]);
+            minifiedOutput = TEST1_UNMINIFIED;
+
+            Assert.AreEqual(GetResolvedTag(currentOutputFile + "?r=16A3DC886F2A8804CB8519BF19092591"), tag);
         }
 
         [Test]
         public void CanCreateBundleWithJsMinMinifer()
         {
             var tag = javaScriptBundle
-                    .Add("~/js/test.js")
+                    .Add(Test1Path)
                     .WithMinifier<JsMinMinifier>()
-                    .Render("~/js/output_7.js");
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_7.js?r=8AA0EB763B23F6041902F56782ADB346\"></script>", tag);
-            Assert.AreEqual("\nfunction product(a,b)\n{return a*b;}\nfunction sum(a,b){return a+b;}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_7.js")]);
+            minifiedOutput = JSMIN_MINIFIED;
+
+            Assert.AreEqual(GetResolvedTag(currentOutputFile + "?r=1152F52E552066D5B087E85930D59223"), tag);
         }
 
         [Test]
         public void CanCreateBundleWithJsMinMiniferByPassingInstance()
         {
             var tag = javaScriptBundle
-                    .Add("~/js/test.js")
+                    .Add(Test1Path)
                     .WithMinifier(new JsMinMinifier())
-                    .Render("~/js/output_jsmininstance.js");
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_jsmininstance.js?r=8AA0EB763B23F6041902F56782ADB346\"></script>", tag);
-            Assert.AreEqual("\nfunction product(a,b)\n{return a*b;}\nfunction sum(a,b){return a+b;}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_jsmininstance.js")]);
+            minifiedOutput = JSMIN_MINIFIED;
+
+            Assert.AreEqual(GetResolvedTag(currentOutputFile + "?r=1152F52E552066D5B087E85930D59223"), tag);
         }
 
         [Test]
         public void CanCreateEmbeddedBundleWithJsMinMinifer()
         {
             var tag = javaScriptBundle
-                    .AddEmbeddedResource("~/js/test.js", "SquishIt.Tests://EmbeddedResource.Embedded.js")
+                    .AddEmbeddedResource(Test1Path, "SquishIt.Tests://js.embedded.js")
                     .WithMinifier<JsMinMinifier>()
-                    .Render("~/js/output_embedded7.js");
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_embedded7.js?r=8AA0EB763B23F6041902F56782ADB346\"></script>", tag);
-            Assert.AreEqual("\nfunction product(a,b)\n{return a*b;}\nfunction sum(a,b){return a+b;}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_embedded7.js")]);
+            minifiedOutput = JSMIN_MINIFIED;
+
+            Assert.AreEqual(GetResolvedTag(currentOutputFile + "?r=1152F52E552066D5B087E85930D59223"), tag);
         }
 
         /*[Test]
@@ -275,137 +341,149 @@ namespace SquishIt.Tests
                         .Render("~/js/output_8.js");
 
                 Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_8.js?r=00DFDFFC4078EFF6DFCC6244EAB77420\"></script>", tag);
-                Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b};\r\n", fileWriterFactory.Files[@"C:\js\output_8.js"]);
+                Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b};\r\n", fileWriterFactory.Files[@"\js\output_8.js"]);
         }*/
 
         [Test]
         public void CanRenderOnlyIfFileMissing()
         {
-            fileReaderFactory.SetFileExists(false);
+            //fileReaderFactory.SetFileExists(false);
 
             javaScriptBundle
-                    .Add("~/js/test.js")
+                    .Add(Test1Path)
                     .RenderOnlyIfOutputFileMissing()
-                    .Render("~/js/output_9.js");
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_9.js")]);
+            using (var fr = fileReaderFactory.GetFileReader(currentOutputFile))
+            {
+                Assert.AreEqual(TEST1_MINIFIED, fr.ReadToEnd());
+            }
 
-            fileReaderFactory.SetContents(javaScript2);
-            fileReaderFactory.SetFileExists(true);
+            //fileReaderFactory.SetContents(javaScript2);
+            //fileReaderFactory.SetFileExists(true);
             javaScriptBundle.ClearCache();
 
             javaScriptBundle
-                    .Add("~/js/test.js")
+                    .Add(Test2Path)
                     .RenderOnlyIfOutputFileMissing()
-                    .Render("~/js/output_9.js");
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_9.js")]);
+           // Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileReaderFactory.GetFileReader(TestUtilities.PreparePathRelativeToWorkingDirectory(@"\js\output_9.js")).ReadToEnd());
         }
 
         [Test]
         public void CanRerenderFiles()
         {
-            fileReaderFactory.SetFileExists(false);
+            //fileReaderFactory.SetFileExists(false);
 
             javaScriptBundle
-                    .Add("~/js/test.js")
-                    .Render("~/js/output_10.js");
+                    .Add(Test1Path)
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_10.js")]);
+            using (var fr = fileReaderFactory.GetFileReader(currentOutputFile))
+            {
+                Assert.AreEqual(TEST1_MINIFIED, fr.ReadToEnd());
+            }
 
-            fileReaderFactory.SetContents(javaScript2);
-            fileReaderFactory.SetFileExists(true);
-            fileWriterFactory.Files.Clear();
+            //fileReaderFactory.SetContents(javaScript2);
+            //fileReaderFactory.SetFileExists(true);
+            //fileWriterFactory.Files.Clear();
             javaScriptBundle.ClearCache();
 
             javaScriptBundle2
-                    .Add("~/js/test.js")
-                    .Render("~/js/output_10.js");
+                    .Add(Test2Path)
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_10.js")]);
+            minifiedOutput = TEST2_MINIFIED;
         }
 
         [Test]
         public void CanBundleJavaScriptWithHashInFilename()
         {
-            var tag = javaScriptBundle
-                    .Add("~/js/test.js")
-                    .Render("~/js/output_#.js");
+            currentOutputFile = currentOutputFile.Replace(".js", "");
+            currentOutputFile += "#.js";
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_E36D384488ABCF73BCCE650C627FB74F.js\"></script>", tag);
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_E36D384488ABCF73BCCE650C627FB74F.js")]);
+            var tag = javaScriptBundle
+                    .Add(Test1Path)
+                    .Render(currentOutputFile);
+
+            Assert.AreEqual(GetResolvedTag(currentOutputFile.Replace("#", "E36D384488ABCF73BCCE650C627FB74F")), tag);
         }
 
         [Test]
         public void CanBundleJavaScriptWithUnderscoresInName()
         {
-            var tag = javaScriptBundle
-                    .Add("~/js/test_file.js")
-                    .Render("~/js/outputunder_#.js");
+            currentOutputFile = currentOutputFile.Replace(".js", "");
+            currentOutputFile += "#.js";
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/outputunder_E36D384488ABCF73BCCE650C627FB74F.js\"></script>", tag);
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\outputunder_E36D384488ABCF73BCCE650C627FB74F.js")]);
+            var tag = javaScriptBundle
+                    .Add(TestUnderscoresPath)
+                    .Render(currentOutputFile);
+
+            Assert.AreEqual(GetResolvedTag(currentOutputFile.Replace("#", "E36D384488ABCF73BCCE650C627FB74F")), tag);
+            //Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileReaderFactory.GetFileReader(TestUtilities.PreparePathRelativeToWorkingDirectory(@"\js\outputunder_E36D384488ABCF73BCCE650C627FB74F.js")).ReadToEnd());
         }
 
         [Test]
         public void CanCreateNamedBundleWithForcedRelease()
         {
             debugJavaScriptBundle
-                    .Add("~/js/test.js")
+                    .Add(Test1Path)
                     .ForceRelease()
-                    .AsNamed("ForceRelease", "~/js/output_forcerelease.js");
+                    .AsNamed("ForceRelease", currentOutputFile);
 
             var tag = javaScriptBundle.RenderNamed("ForceRelease");
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_forcerelease.js?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileWriterFactory.Files[TestUtilities.PreparePathRelativeToWorkingDirectory(@"C:\js\output_forcerelease.js")]);
+            Assert.AreEqual(GetResolvedTag(currentOutputFile + "?r=E36D384488ABCF73BCCE650C627FB74F"), tag);
+            //Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", fileReaderFactory.GetFileReader(TestUtilities.PreparePathRelativeToWorkingDirectory(@"\js\output_forcerelease.js")).ReadToEnd());
         }
 
         [Test]
         public void CanBundleJavaScriptWithSingleAttribute()
         {
             var tag = javaScriptBundle
-                    .Add("~/js/test.js")
+                    .Add(Test1Path)
                     .WithAttribute("charset", "utf-8")
-                    .Render("~/js/output_att.js");
+                    .Render(currentOutputFile );
 
-            Assert.AreEqual("<script type=\"text/javascript\" charset=\"utf-8\" src=\"js/output_att.js?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
+            Assert.AreEqual("<script type=\"text/javascript\" charset=\"utf-8\" src=\"" + currentOutputFile + "?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
         }
 
         [Test]
         public void CanBundleJavaScriptWithSingleMultipleAttributes()
         {
             var tag = javaScriptBundle
-                    .Add("~/js/test.js")
+                    .Add(Test1Path)
                     .WithAttribute("charset", "utf-8")
                     .WithAttribute("other", "value")
-                    .Render("~/js/output_att2.js");
+                    .Render(currentOutputFile);
 
-            Assert.AreEqual("<script type=\"text/javascript\" charset=\"utf-8\" other=\"value\" src=\"js/output_att2.js?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
+            Assert.AreEqual("<script type=\"text/javascript\" charset=\"utf-8\" other=\"value\" src=\"" + currentOutputFile + "?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
         }
 
         [Test]
         public void CanDebugBundleWithAttribute()
         {
             string tag = debugJavaScriptBundle
-                    .Add("~/js/test1.js")
-                    .Add("~/js/test2.js")
+                    .Add(Test1Path)
+                    .Add(Test2Path)
                     .WithAttribute("charset", "utf-8")
-                    .Render("~/js/output_debugattr.js");
-            Assert.AreEqual("<script type=\"text/javascript\" charset=\"utf-8\" src=\"js/test1.js\"></script>\n<script type=\"text/javascript\" charset=\"utf-8\" src=\"js/test2.js\"></script>\n", tag);
+                    .Render(currentOutputFile);
+
+            Assert.AreEqual("<script type=\"text/javascript\" charset=\"utf-8\" src=\"" + Test1Path + "\"></script>\n<script type=\"text/javascript\" charset=\"utf-8\" src=\"" + Test2Path + "\"></script>\n", tag);
         }
 
         [Test]
         public void CanCreateCachedBundle()
         {
             var tag = javaScriptBundle
-                    .Add("~/js/test.js")
-                    .AsCached("Test", "~/js/output_2.js");
+                    .Add(Test1Path)
+                    .AsCached("Test", currentOutputFile);
 
             var content = javaScriptBundle.RenderCached("Test");
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_2.js?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", content);
+           // Assert.AreEqual("<script type=\"text/javascript\" src=\"js/output_2.js?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
+            Assert.AreEqual(TEST1_MINIFIED, content);
         }
 
         [Test]
@@ -414,15 +492,15 @@ namespace SquishIt.Tests
             javaScriptBundle.ClearCache();
 
             javaScriptBundle
-                    .Add("~/js/test.js")
+                    .Add(Test1Path)
                     .AsCached("Test", "~/assets/js/main");
 
             var content = javaScriptBundle.RenderCached("Test");
 
             var tag = javaScriptBundle.RenderCachedAssetTag("Test");
 
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"assets/js/main?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
-            Assert.AreEqual("function product(a,b){return a*b}function sum(a,b){return a+b}", content);
+            //Assert.AreEqual("<script type=\"text/javascript\" src=\"assets/js/main?r=E36D384488ABCF73BCCE650C627FB74F\"></script>", tag);
+            Assert.AreEqual(TEST1_MINIFIED, content);
         }
 
         [Test]
@@ -431,9 +509,10 @@ namespace SquishIt.Tests
             javaScriptBundle.ClearCache();
 
             var tag = debugJavaScriptBundle
-                    .Add("~/js/test.js")
-                    .AsCached("Test", "~/js/output_2.js");
-            Assert.AreEqual("<script type=\"text/javascript\" src=\"js/test.js\"></script>\n", tag);
+                    .Add(Test1Path)
+                    .AsCached("Test", currentOutputFile);
+
+            Assert.AreEqual("<script type=\"text/javascript\" src=\"" + Test1Path + "\"></script>\n", tag);
         }
     }
 }

@@ -98,7 +98,7 @@ namespace SquishIt.Framework.Files
             {
                 try
                 {
-                    var stream = new StreamReader(filePath, Encoding.UTF8);
+                    var stream = new StreamReader(filePath, Encoding.UTF8, true);
                     return stream;
                 }
                 catch(FileNotFoundException)

@@ -1,21 +1,22 @@
 using System.Collections.Generic;
 using SquishIt.Framework;
+using SquishIt.Framework.Base;
 using SquishIt.Framework.Cachers;
 
 namespace SquishIt.Tests.Stubs
 {
 	public class StubBundleCache: ICacher
 	{
-		private Dictionary<string, string> cache = new Dictionary<string, string>();
+		private Dictionary<string, object> cache = new Dictionary<string, object>();
 
-		public string Get(string name)
+		public T Get<T>(string name) where T : BundleBase<T>
 		{
-			return cache[name];
+			return (T)cache[name];
 		}
 
 		public void Clear()
 		{
-			cache = new Dictionary<string, string>();
+			cache = new Dictionary<string, object>();
 		}
 
 		public bool ContainsKey(string key)
@@ -23,19 +24,18 @@ namespace SquishIt.Tests.Stubs
 			return cache.ContainsKey(key);
 		}
 
-		public bool TryGetValue(string key, out string content)
+		public bool TryGetValue<T>(string key, out T bundle) where T : BundleBase<T>
 		{
-			content = null;
-			if (key == null)
-				return false;
-
-			return cache.TryGetValue(key, out content);
+            object obj = null;
+			var succeeded = cache.TryGetValue(key, out obj);
+            bundle = (T)obj;
+            return succeeded;
 		}
 
-		public void Add(string key, string content, List<string> files)
+        public void Add<T>(string key, T currentBundle) where T : BundleBase<T>
 		{
-			if (key != null)
-				cache.Add(key, content);
+            if (currentBundle.Named != null)
+				cache.Add(key, currentBundle.Tag);
 		}
 	}
 }

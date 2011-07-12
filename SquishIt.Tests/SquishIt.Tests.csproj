@@ -116,10 +116,21 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="EmbeddedResource\Embedded.js" />
+    <EmbeddedResource Include="js\embedded.js" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="EmbeddedResource\Embedded.css" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="js\test_underscores.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="js\test2.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="js\test1.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

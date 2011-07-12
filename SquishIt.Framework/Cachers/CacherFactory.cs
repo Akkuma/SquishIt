@@ -12,8 +12,8 @@ namespace SquishIt.Framework.Cachers
     {
         private static Dictionary<string, ICacher> Renderers = new Dictionary<string, ICacher>
         {
-            {typeof(ApplicationCache).FullName, new ApplicationCache()},
-            {typeof(MemoryCache).FullName, new MemoryCache()}
+            {typeof(ApplicationCache).FullName, new ApplicationCache()}/*,
+            {typeof(MemoryCache).FullName, new MemoryCache()}*/
         };
 
         public static T Get<T>() where T : ICacher

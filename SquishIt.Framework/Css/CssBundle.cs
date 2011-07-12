@@ -29,7 +29,7 @@ namespace SquishIt.Framework.CSS
             get { return CSS_TEMPLATE; }
         }
 
-    	protected override string CachePrefix
+    	internal override string CachePrefix
         {
             get { return CACHE_PREFIX; }
         }
