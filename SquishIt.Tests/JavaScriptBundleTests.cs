@@ -34,12 +34,12 @@ function sum(a, b) {
         private JavaScriptBundle javaScriptBundle2;
         private JavaScriptBundle debugJavaScriptBundle;
         private JavaScriptBundle debugJavaScriptBundle2;
-        private FileWriterFactory fileWriterFactory;
-        private FileReaderFactory fileReaderFactory;
+        private FileWriterFactory fileWriterFactory = new FileWriterFactory(new RetryableFileOpener(), 5);
+        private FileReaderFactory fileReaderFactory = new FileReaderFactory(new RetryableFileOpener(), 5);
         private StubCurrentDirectoryWrapper currentDirectoryWrapper;
         private IHasher hasher;
         private ApplicationCache stubBundleCache;
-        private string FilePath = FileSystem.TempFilePath;
+        private static string FilePath = FileSystem.TempFilePath;
         private string Test1Path;
         private string Test2Path;
         private string TestUnderscoresPath;
@@ -51,12 +51,12 @@ function sum(a, b) {
         private string minifiedOutput;
 
         private int outputFileNumber = 0;
-        private string outputFileRoot = TestUtilities.PreparePathRelativeToWorkingDirectory(@"\js\output_");
+        private string outputFileRoot = FilePath + TestUtilities.PreparePath(@"\js\output_");
         private string currentOutputFile;
 
         private string ResolveToCurrentDirectory(string filePath)
         {
-            return Environment.CurrentDirectory + filePath;
+            return FileSystem.ResolveAppRelativePathToFileSystem(Environment.CurrentDirectory + filePath);
         }
 
         private string GetResolvedTag(string filePath)
@@ -70,8 +70,6 @@ function sum(a, b) {
         {
             var nonDebugStatusReader = new StubDebugStatusReader(false);
             var debugStatusReader = new StubDebugStatusReader(true);
-            fileWriterFactory = new FileWriterFactory(new RetryableFileOpener(), 5);
-            fileReaderFactory = new FileReaderFactory(new RetryableFileOpener(), 5);
             currentDirectoryWrapper = new StubCurrentDirectoryWrapper();
             stubBundleCache = new ApplicationCache();
 
@@ -129,10 +127,25 @@ function sum(a, b) {
         [TestFixtureSetUp]
         public void Init()
         {
-            Test1Path = ResolveToCurrentDirectory(TestUtilities.PreparePath("/js/test1.js"));
-            Test2Path = ResolveToCurrentDirectory(TestUtilities.PreparePath("/js/test2.js"));
-            EmbeddedResourcePath = ResolveToCurrentDirectory(TestUtilities.PreparePath("/js/embedded.js"));
-            TestUnderscoresPath = ResolveToCurrentDirectory(TestUtilities.PreparePath("/js/test_underscores.js"));
+            Test1Path = ResolveToCurrentDirectory("/js/test1.js");
+            Test2Path = ResolveToCurrentDirectory("/js/test2.js");
+            EmbeddedResourcePath = ResolveToCurrentDirectory("/js/embedded.js");
+            TestUnderscoresPath = ResolveToCurrentDirectory("/js/test_underscores.js");
+            string[] pathsToNormalize = { Test1Path, Test2Path, TestUnderscoresPath };
+            foreach (var path in pathsToNormalize)
+	        {
+                string content;
+                using (var fileReader = fileReaderFactory.GetFileReader(path))
+                {
+                    content = TestUtilities.NormalizeLineEndings(fileReader.ReadToEnd());
+                }
+
+                using (var fileWriter = fileWriterFactory.GetFileWriter(path))
+                {
+                    fileWriter.Write(content);
+                }
+	        }
+
             Directory.CreateDirectory(FilePath + TestUtilities.PreparePath(@"\js"));
         }
 
