@@ -57,62 +57,63 @@ namespace SquishIt.Framework.Base
             HashKeyName = "r";
         }
 
-        private List<string> GetFiles(List<Asset> assets)
+        private List<string> GetResolvedSystemPaths(List<Asset> assets)
         {
-            var inputFiles = GetInputFiles(assets);
-            var resolvedFilePaths = new List<string>();
-
-            foreach (InputFile file in inputFiles)
-            {
-                resolvedFilePaths.AddRange(file.Resolver.TryResolve(file.FilePath));
-            }
-
-            return resolvedFilePaths;
-        }
-
-        private InputFile GetInputFile(Asset asset)
-        {
-            if (!asset.IsEmbeddedResource)
-            {
-                return String.IsNullOrEmpty(asset.RemotePath) ? GetFileSystemPath(asset.LocalPath) : GetHttpPath(asset.RemotePath);
-            }
-            else
-            {
-                return GetEmbeddedResourcePath(asset.RemotePath);
-            }
-        }
-
-        private List<InputFile> GetInputFiles(List<Asset> assets)
-        {
-            var inputFiles = new List<InputFile>();
+            var inputFiles = new List<string>();
             foreach (var asset in assets)
             {
-                if (asset.RemotePath == null)
+                var path = GetResolvedSystemPath(asset);
+                if (!String.IsNullOrEmpty(path))
                 {
-                    inputFiles.Add(GetFileSystemPath(asset.LocalPath));
-                }
-                else if (asset.IsEmbeddedResource)
-                {
-                    inputFiles.Add(GetEmbeddedResourcePath(asset.RemotePath));
+                    inputFiles.Add(path);
                 }
             }
+
             return inputFiles;
         }
 
-        private InputFile GetFileSystemPath(string localPath)
+        private string GetResolvedSystemPath(Asset asset)
         {
-            string mappedPath = FileSystem.ResolveAppRelativePathToFileSystem(localPath);
-            return new InputFile(mappedPath, ResolverFactory.Get<FileResolver>());
+            string path;
+            if (asset.RemotePath == null)
+            {
+                path = GetFileSystemPath(asset.LocalPath);
+            }
+            else
+            {
+                if (asset.IsEmbeddedResource)
+                {
+                    path = GetEmbeddedResourcePath(asset.RemotePath);
+                }
+                else
+                {
+                    //Remote files do not need to be resolved as they cannot be a cache dependency
+                    path = debugStatusReader.IsDebuggingEnabled() ? GetFileSystemPath(asset.LocalPath) : null;
+                }
+            }
+
+            return path;
         }
 
-        private InputFile GetHttpPath(string remotePath)
+        private string GetResolvedSystemPath<T>(string filePath) where T : IResolver
         {
-            return new InputFile(remotePath, ResolverFactory.Get<HttpResolver>());
+            string resolvedPath = null;
+            foreach (var path in ResolverFactory.Get<T>().Resolve(filePath))
+            {
+                resolvedPath = path;
+            }
+
+            return resolvedPath;
         }
 
-        private InputFile GetEmbeddedResourcePath(string resourcePath)
+        private string GetFileSystemPath(string localPath)
         {
-            return new InputFile(resourcePath, ResolverFactory.Get<EmbeddedResourceResolver>());
+            return GetResolvedSystemPath<FileResolver>(localPath);
+        }
+
+        private string GetEmbeddedResourcePath(string path)
+        {
+            return GetResolvedSystemPath<EmbeddedResourceResolver>(path);
         }
 
         private string ExpandAppRelativePath(string file)
@@ -153,12 +154,12 @@ namespace SquishIt.Framework.Base
             return result.ToString();
         }
 
-        private string GetFilesForRemote(List<string> remoteAssetPaths, GroupBundle groupBundle)
+        private string GetRemoteTags(List<Asset> remoteAssets, GroupBundle groupBundle)
         {
             var sb = new StringBuilder();
-            foreach (var uri in remoteAssetPaths)
+            foreach (var asset in remoteAssets)
             {
-                sb.Append(FillTemplate(groupBundle, uri));
+                sb.Append(FillTemplate(groupBundle, asset.RemotePath));
             }
 
             return sb.ToString();
@@ -303,23 +304,17 @@ namespace SquishIt.Framework.Base
                     var attributes = GetAdditionalAttributes(groupBundle);
                     var assets = groupBundle.Assets;
 
-                    DependentFiles.AddRange(GetFiles(assets));
+                    DependentFiles.AddRange(GetResolvedSystemPaths(assets));
                     foreach (var asset in assets)
                     {
                         string processedFile = ExpandAppRelativePath(asset.LocalPath);
+
                         if (asset.IsEmbeddedResource)
-                        {
-                            IEnumerable<String> files = null;
-                            var inputFile = GetInputFile(asset);
-                            files = inputFile.Resolver.TryResolve(inputFile.FilePath);
-                            var tsb = new StringBuilder();
-                            foreach (var fn in files)
-                            {
-                                tsb.Append(ReadFile(fn) + "\n");
-                            }
-                            var renderer = new FileRenderer(fileWriterFactory);
-                            renderer.Render(tsb.ToString(), FileSystem.ResolveAppRelativePathToFileSystem((processedFile)));
+                        {                           
+                            var contents = ReadFile(GetEmbeddedResourcePath(asset.RemotePath));
+                            new FileRenderer(fileWriterFactory).Render(contents, FileSystem.ResolveAppRelativePathToFileSystem(processedFile));
                         }
+
                         sb.Append(FillTemplate(groupBundle, processedFile));
                         sb.Append("\n");
                     }
@@ -358,26 +353,29 @@ namespace SquishIt.Framework.Base
 
                     string outputFile = FileSystem.ResolveAppRelativePathToFileSystem(renderTo);
 
-                    var localAssetPaths = new List<string>();
-                    var remoteAssetPaths = new List<string>();
-                    var embeddedAssetPaths = new List<string>();
+                    var localAssets = new List<Asset>();
+                    var remoteAssets = new List<Asset>();
+                    var embeddedAssets = new List<Asset>();
                     foreach (var asset in groupBundle.Assets)
                     {
                         if (asset.RemotePath == null)
                         {
-                            localAssetPaths.Add(asset.LocalPath);
+                            localAssets.Add(asset);
                         }
                         else if (!asset.IsEmbeddedResource)
                         {
-                            remoteAssetPaths.Add(asset.RemotePath);
+                            remoteAssets.Add(asset);
                         }
                         else if (asset.IsEmbeddedResource)
                         {
-                            embeddedAssetPaths.Add(asset.RemotePath);
+                            embeddedAssets.Add(asset);
                         }
                     }
 
-                    files.AddRange(GetFiles(groupBundle.Assets));
+                    var assetsToResolve = new List<Asset>(localAssets);
+                    assetsToResolve.AddRange(embeddedAssets);
+
+                    files.AddRange(GetResolvedSystemPaths(groupBundle.Assets));
                     DependentFiles.AddRange(files);
 
                     if (renderTo.Contains("#"))
@@ -421,7 +419,7 @@ namespace SquishIt.Framework.Base
                         renderedTag = FillTemplate(groupBundle, hashedPath);
                     }
 
-                    Tag += String.Concat(GetFilesForRemote(remoteAssetPaths, groupBundle), renderedTag);
+                    Tag += String.Concat(GetRemoteTags(remoteAssets, groupBundle), renderedTag);
                 }
 
                 cacher.Add<T>(key, (T)this);

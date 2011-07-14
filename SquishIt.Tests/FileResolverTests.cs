@@ -35,7 +35,7 @@ namespace SquishIt.Tests
             var fileResolver = new FileResolver();
             foreach (string key in values.Keys)
             {
-                var resolvedFile = fileResolver.TryResolve(key).ToList();
+                var resolvedFile = fileResolver.Resolve(key).ToList();
                 Assert.AreEqual(values[key], resolvedFile[0], key);
             }
         }
@@ -55,7 +55,7 @@ namespace SquishIt.Tests
             var fileResolver = new FileResolver();
             foreach (string key in values.Keys)
             {
-                var resolvedFile = fileResolver.TryResolve(key).ToList();
+                var resolvedFile = fileResolver.Resolve(key).ToList();
                 Assert.AreEqual(values[key], resolvedFile[0], key);
             }
         }
@@ -65,7 +65,7 @@ namespace SquishIt.Tests
         {
             var directoryEnumerator = new StubDirectoryEnumerator();
             var fileResolver = new DirectoryResolver(directoryEnumerator);
-            var files = fileResolver.TryResolve(@"C:\test\").ToList();
+            var files = fileResolver.Resolve(@"C:\test\").ToList();
 
             Assert.AreEqual(@"C:\test\file1.js", files[0]);
             Assert.AreEqual(@"C:\test\file2.js", files[1]);

@@ -6,7 +6,7 @@ namespace SquishIt.Framework.Resolvers
 {
     public class HttpResolver: IResolver
     {
-        public IEnumerable<string> TryResolve(string file)
+        public IEnumerable<string> Resolve(string file)
         {
             var webRequestObject = (HttpWebRequest)WebRequest.Create(file);
             var webResponse = webRequestObject.GetResponse();

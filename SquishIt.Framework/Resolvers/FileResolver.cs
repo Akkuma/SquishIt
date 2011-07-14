@@ -5,13 +5,9 @@ namespace SquishIt.Framework.Resolvers
 {
     public class FileResolver: IResolver
     {
-        public static string Type
+        public IEnumerable<string> Resolve(string file)
         {
-            get { return "file"; }
-        }        
-
-        public IEnumerable<string> TryResolve(string file)
-        {
+            file = FileSystem.ResolveAppRelativePathToFileSystem(file);
             yield return Path.GetFullPath(file);            
         }        
     }

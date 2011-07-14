@@ -11,7 +11,7 @@ namespace SquishIt.Tests.Stubs
             _pathToResolveTo = pathToResolveTo;
         }
 
-        public IEnumerable<string> TryResolve(string file)
+        public IEnumerable<string> Resolve(string file)
         {
             yield return _pathToResolveTo;
         }

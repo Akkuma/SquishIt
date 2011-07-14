@@ -17,7 +17,7 @@ namespace SquishIt.Framework.Resolvers
             this.directoryEnumerator = directoryEnumerator;
         }        
 
-        public IEnumerable<string> TryResolve(string directory)
+        public IEnumerable<string> Resolve(string directory)
         {
             return directoryEnumerator.GetFiles(directory);            
         }        
