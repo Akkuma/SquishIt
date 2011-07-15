@@ -1,8 +1,8 @@
 namespace SquishIt.Framework.Base
 {
-    /*
-    public interface IBundle<T> where T : class, IBundle<T>
-    {
+    
+    public interface IBundle
+    {/*
         T Add(string filePath);
         T Add(string filePath, string group);
         T Add(string filePath, int order);
@@ -27,6 +27,7 @@ namespace SquishIt.Framework.Base
         T WithGroupAttribute(string name, string value, string group);
         T WithGroupAttributes(System.Collections.Generic.Dictionary<string, string> attributes, string group, bool merge = true);
         ////virtual T WithMinifier<T>() where T : Minifiers.IMinifier<T>;
+      */
     }
-     */
+     
 }

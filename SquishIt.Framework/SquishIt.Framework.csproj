@@ -56,6 +56,7 @@
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.ServiceModel" />
     <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
@@ -89,6 +90,7 @@
     <Compile Include="Cachers\MemoryCache.cs" />
     <Compile Include="Cachers\ICacher.cs" />
     <Compile Include="Cachers\CacherFactory.cs" />
+    <Compile Include="Minifiers\IMinify.cs" />
     <Compile Include="Minifiers\IMinifier.cs" />
     <Compile Include="Bundle.cs" />
     <Compile Include="Cachers\ApplicationCache.cs" />

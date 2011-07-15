@@ -527,5 +527,19 @@ function sum(a, b) {
 
             Assert.AreEqual("<script type=\"text/javascript\" src=\"" + Test1Path + "\"></script>\n", tag);
         }
+
+        [Test]
+        public void CanChangeNamedBundleToDebug()
+        {
+            javaScriptBundle
+                    .Add(Test1Path)
+                    .Add(Test2Path)
+                    .AsNamed("ToDebug", currentOutputFile);
+
+            
+            var tag = javaScriptBundle2.GetNamed("ToDebug").ForceDebug().RenderNamed("ToDebug");
+
+            Assert.AreEqual("<script type=\"text/javascript\" src=\"" + Test1Path + "\"></script>\n<script type=\"text/javascript\" src=\"" + Test2Path + "\"></script>\n", tag);
+        }
     }
 }

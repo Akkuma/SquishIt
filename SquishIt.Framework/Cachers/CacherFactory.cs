@@ -10,15 +10,14 @@ namespace SquishIt.Framework.Cachers
 {
     public class CacherFactory
     {
-        private static Dictionary<string, ICacher> Renderers = new Dictionary<string, ICacher>
+        private static KeyedByTypeCollection<ICacher> Renderers = new KeyedByTypeCollection<ICacher>
         {
-            {typeof(ApplicationCache).FullName, new ApplicationCache()}/*,
-            {typeof(MemoryCache).FullName, new MemoryCache()}*/
+            new ApplicationCache()
         };
 
         public static T Get<T>() where T : ICacher
         {
-            return (T)Renderers[typeof(T).FullName];
+            return Renderers.Find<T>();
         }
     }
 }

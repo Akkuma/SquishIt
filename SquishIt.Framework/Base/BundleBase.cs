@@ -11,7 +11,7 @@ using SquishIt.Framework.Utilities;
 
 namespace SquishIt.Framework.Base
 {
-    public abstract class BundleBase<T> where T : BundleBase<T>
+    public abstract class BundleBase<T> : IBundle where T : BundleBase<T>
     {
         private const string DEFAULT_GROUP = "default";
         protected IFileWriterFactory fileWriterFactory;
@@ -44,6 +44,8 @@ namespace SquishIt.Framework.Base
         internal string Named { get; set; }
         internal string RenderTo { get; set; }
         internal string Tag { get; set; }
+
+        private bool IgnoreCache { get; set; }
 
         protected BundleBase(IFileWriterFactory fileWriterFactory, IFileReaderFactory fileReaderFactory, IDebugStatusReader debugStatusReader, ICurrentDirectoryWrapper currentDirectoryWrapper, IHasher hasher, ICacher cacher)
         {
@@ -259,24 +261,37 @@ namespace SquishIt.Framework.Base
             return RenderRelease(key);
         }
 
+
+        public T GetNamed(string name)
+        {
+            var bundle = CacherFactory.Get<ApplicationCache>().Get<T>(CachePrefix + name);
+            bundle.IgnoreCache = true;
+            return bundle;
+        }
+
+        private string RenderNamedTag(string name)
+        {
+            return GetNamed(name).Tag;
+        }
+
         public string RenderNamed(string name)
         {
-            return CacherFactory.Get<ApplicationCache>().Get<T>(CachePrefix + name).Tag;
+            return IgnoreCache ? AsNamed(name, RenderTo) : RenderNamedTag(name);
         }
 
         public string RenderCached(string name)
         {
-            return CacheRenderer.Get(CachePrefix, name);
+            return IgnoreCache ? AsCached(name, RenderTo) : CacheRenderer.Get(CachePrefix, name);
         }
 
         public string RenderCachedAssetTag(string name)
         {
-            return CacherFactory.Get<ApplicationCache>().Get<T>(CachePrefix + name).Tag;
+            return RenderNamedTag(name);
         }
 
-        public void AsNamed(string name, string renderTo)
+        public string AsNamed(string name, string renderTo)
         {
-            Render(renderTo, name, new FileRenderer(fileWriterFactory), CacherFactory.Get<ApplicationCache>());
+            return Render(renderTo, name, new FileRenderer(fileWriterFactory), CacherFactory.Get<ApplicationCache>());
         }
 
         public string AsCached(string name, string filePath)
@@ -292,7 +307,7 @@ namespace SquishIt.Framework.Base
             var inCache = cacher.TryGetValue<T>(key, out bundle);
             Tag = inCache ? bundle.Tag : null;
 
-            if (!inCache)
+            if (!inCache || IgnoreCache)
             {
                 DependentFiles.Clear();
 
@@ -320,6 +335,7 @@ namespace SquishIt.Framework.Base
                     }
                 }
 
+                IgnoreCache = false;
                 Tag = sb.ToString();
                 cacher.Add<T>(key, (T)this);
             }
@@ -337,7 +353,7 @@ namespace SquishIt.Framework.Base
             var inCache = cacher.TryGetValue<T>(key, out bundle);
             Tag = inCache ? bundle.Tag : null;
 
-            if (!inCache)
+            if (!inCache || IgnoreCache)
             {
                 var files = new List<string>();
                 foreach (var groupBundleKVP in GroupBundles)
@@ -422,6 +438,7 @@ namespace SquishIt.Framework.Base
                     Tag += String.Concat(GetRemoteTags(remoteAssets, groupBundle), renderedTag);
                 }
 
+                IgnoreCache = false;
                 cacher.Add<T>(key, (T)this);
             }
 
@@ -483,7 +500,7 @@ namespace SquishIt.Framework.Base
 
         public T WithMinifier<TMin>() where TMin : IMinifier<T>
         {
-            Minifier = MinifierFactory.Get<T, TMin>();
+            Minifier = MinifierFactory.Get<TMin>();
             return (T)this;
         }
 

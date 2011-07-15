@@ -12,31 +12,21 @@ namespace SquishIt.Framework.Minifiers
 {
     public static class MinifierFactory
     {
-        private static Dictionary<Type, Dictionary<Type, object>> Minifiers = new Dictionary<Type, Dictionary<Type, object>>
-        {
-            {
-                typeof(CSSBundle), new Dictionary<Type, object>
-                                {
-                                    {typeof(CSS.MsCompressor), new CSS.MsCompressor()},
-                                    {typeof(CSS.NullCompressor), new CSS.NullCompressor()},
-                                    {typeof(CSS.YuiCompressor), new CSS.YuiCompressor()}
-                                }
-            },
-            {
-                typeof(JavaScriptBundle), new Dictionary<Type, object>
-                                {
-                                    {typeof(JavaScript.JsMinMinifier), new JavaScript.JsMinMinifier()},
-                                    {typeof(JavaScript.NullMinifier), new JavaScript.NullMinifier()},
-                                    {typeof(JavaScript.YuiMinifier), new JavaScript.YuiMinifier()},
-                                    {typeof(JavaScript.ClosureMinifier), new JavaScript.ClosureMinifier()},
-                                    {typeof(JavaScript.MsMinifier), new JavaScript.MsMinifier()}
-                                }
-            }        
+        private static KeyedByTypeCollection<Framework.Minifiers.IMinify> Minifiers = new KeyedByTypeCollection<Framework.Minifiers.IMinify>
+        {               
+            new CSS.MsCompressor(),
+            new CSS.NullCompressor(),
+            new CSS.YuiCompressor(),
+            new JavaScript.JsMinMinifier(),
+            new JavaScript.NullMinifier(),
+            new JavaScript.YuiMinifier(),
+            new JavaScript.ClosureMinifier(),
+            new JavaScript.MsMinifier()                
         };
 
-        public static Min Get<BundleType, Min>() where BundleType : Base.BundleBase<BundleType> where Min : IMinifier<BundleType>
-        {
-            return (Min)Minifiers[typeof(BundleType)][typeof(Min)];
+        public static Min Get<Min>() where Min : IMinify
+        {            
+            return Minifiers.Find<Min>();
         }
     }
 }

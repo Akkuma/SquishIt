@@ -10,17 +10,17 @@ namespace SquishIt.Framework.Resolvers
 {
     public class ResolverFactory
     {
-        private static Dictionary<string, IResolver> resolvers = new Dictionary<string, IResolver>
+        private static KeyedByTypeCollection<IResolver> resolvers = new KeyedByTypeCollection<IResolver>
         {
-            {typeof(DirectoryResolver).FullName, new DirectoryResolver()},
-            {typeof(EmbeddedResourceResolver).FullName, new EmbeddedResourceResolver()},
-            {typeof(FileResolver).FullName, new FileResolver()},
-            {typeof(HttpResolver).FullName, new HttpResolver()},
+            new DirectoryResolver(),
+            new EmbeddedResourceResolver(),
+            new FileResolver(),
+            new HttpResolver(),
         };
 
         public static T Get<T>() where T : IResolver
         {
-            return (T)resolvers[typeof(T).FullName];
+            return resolvers.Find<T>();
         }
     }
 }

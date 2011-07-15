@@ -10,7 +10,7 @@ namespace SquishIt.Framework.Cachers
     {
         private const string KEY_PREFIX = "squishit_";
 
-        private static List<string> CacheKeys = new List<string>();
+        private static HashSet<string> CacheKeys = new HashSet<string>();
 
         public T Get<T>(string name) where T : BundleBase<T>
         {
@@ -43,7 +43,7 @@ namespace SquishIt.Framework.Cachers
         {
             key = KEY_PREFIX + key;
             CacheKeys.Add(key);
-            HttpRuntime.Cache.Add(key, currentBundle, new CacheDependency(currentBundle.DependentFiles.ToArray()),
+            HttpRuntime.Cache.Insert(key, currentBundle, new CacheDependency(currentBundle.DependentFiles.ToArray()),
                                     Cache.NoAbsoluteExpiration, 
                                     new TimeSpan(365, 0, 0, 0),
                                     CacheItemPriority.NotRemovable,

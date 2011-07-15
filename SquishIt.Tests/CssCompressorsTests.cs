@@ -30,7 +30,7 @@ namespace SquishIt.Tests
         [Test]
         public void NullCompressorTest()
         {
-            var cssCompressor = MinifierFactory.Get<CSSBundle, NullCompressor>();
+            var cssCompressor = MinifierFactory.Get<NullCompressor>();
             var uncompressedCss = cssCompressor.Minify(css);
             Assert.AreEqual(css, uncompressedCss);
         }
@@ -38,7 +38,7 @@ namespace SquishIt.Tests
         [Test]
         public void YuiCompressorTest()
         {
-            var cssCompressor = MinifierFactory.Get<CSSBundle, YuiCompressor>();
+            var cssCompressor = MinifierFactory.Get<YuiCompressor>();
             var compressedCss = cssCompressor.Minify(css);
             Assert.AreEqual(" li{margin-bottom:.1em;margin-left:0;margin-top:.1em}th{font-weight:400;vertical-align:bottom}.FloatRight{float:right}.FloatLeft{float:left}", compressedCss);
         }
@@ -46,7 +46,7 @@ namespace SquishIt.Tests
         [Test]
         public void MsCompressorTest()
         {
-            var cssCompressor = MinifierFactory.Get<CSSBundle, MsCompressor>();
+            var cssCompressor = MinifierFactory.Get<MsCompressor>();
             var compressedCss = cssCompressor.Minify(css);
             Assert.AreEqual("li{margin-bottom:.1em;margin-left:0;margin-top:.1em}th{font-weight:normal;vertical-align:bottom}.FloatRight{float:right}.FloatLeft{float:left}", compressedCss);
         }
