@@ -59,7 +59,7 @@ namespace SquishIt.Framework.Base
             HashKeyName = "r";
         }
 
-        private List<string> GetResolvedSystemPaths(List<Asset> assets)
+        private List<string> GetResolvedSystemPaths(IEnumerable<Asset> assets)
         {
             var inputFiles = new List<string>();
             foreach (var asset in assets)
@@ -182,34 +182,41 @@ namespace SquishIt.Framework.Base
             }
         }
 
-        public T Add(params string[] filesPath)
+        public T Add(params string[] filePaths)
         {
-            foreach (var filePath in filesPath)
-                Add(filePath);
+            foreach (var filePath in filePaths)
+            {
+                AddAsset(new Asset(filePath));
+            }
 
             return (T)this;
         }
 
+/*
         public T Add(string filePath)
         {
             AddAsset(new Asset(filePath));
             return (T)this;
         }
-
-        public T AddToGroup(string group, params string[] filesPath)
+*/
+  
+        public T AddToGroup(string group, params string[] filePaths)
         {
-            foreach (var filePath in filesPath)
-                AddToGroup(group, filePath);
+            foreach (var filePath in filePaths)
+            {
+                AddAsset(new Asset(filePath), group);
+            }
 
             return (T)this;
         }
 
+        /*
         public T AddToGroup(string group, string filePath)
         {
             AddAsset(new Asset(filePath), group);
             return (T)this;
         }
-
+        */
         public T AddRemote(string localPath, string remotePath)
         {
             AddAsset(new Asset(localPath, remotePath));
@@ -219,6 +226,26 @@ namespace SquishIt.Framework.Base
         public T AddEmbeddedResource(string localPath, string embeddedResourcePath)
         {
             AddAsset(new Asset(localPath, embeddedResourcePath, 0, true));
+            return (T)this;
+        }
+
+        private void RemoveAsset(string[] filePaths, string group = DEFAULT_GROUP)
+        {
+            foreach (var filePath in filePaths)
+            {
+                GroupBundles[group].Assets.RemoveWhere(asset => asset.LocalPath == filePath || asset.RemotePath == filePath);
+            }
+        }
+
+        public T Remove(params string[] filePaths)
+        {
+            RemoveAsset(filePaths);            
+            return (T)this;
+        }
+
+        public T RemoveFromGroup(string group, params string[] filePaths)
+        {
+            RemoveAsset(filePaths, group);
             return (T)this;
         }
 

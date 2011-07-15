@@ -534,12 +534,25 @@ function sum(a, b) {
             javaScriptBundle
                     .Add(Test1Path)
                     .Add(Test2Path)
-                    .AsNamed("ToDebug", currentOutputFile);
+                    .AsNamed("ChangedToDebug", currentOutputFile);
 
-            
-            var tag = javaScriptBundle2.GetNamed("ToDebug").ForceDebug().RenderNamed("ToDebug");
+            var tag = javaScriptBundle2.GetNamed("ChangedToDebug").ForceDebug().RenderNamed("ChangedToDebug");
 
             Assert.AreEqual("<script type=\"text/javascript\" src=\"" + Test1Path + "\"></script>\n<script type=\"text/javascript\" src=\"" + Test2Path + "\"></script>\n", tag);
+        }
+
+
+        [Test]
+        public void CanRemoveAssets()
+        {
+            var tag = debugJavaScriptBundle
+                        .Add(Test1Path)
+                        .Add(Test2Path)
+                        .Add(TestUnderscoresPath)
+                        .Remove(Test2Path, TestUnderscoresPath)
+                        .Render(currentOutputFile);
+
+            Assert.AreEqual("<script type=\"text/javascript\" src=\"" + Test1Path + "\"></script>\n", tag);
         }
     }
 }

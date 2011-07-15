@@ -5,7 +5,7 @@ namespace SquishIt.Framework.Base
 {
     internal class GroupBundle
     {
-        internal List<Asset> Assets = new List<Asset>();
+        internal HashSet<Asset> Assets = new HashSet<Asset>();
         internal Dictionary<string, string> Attributes = new Dictionary<string, string>();
         internal int Order { get; set; }
 

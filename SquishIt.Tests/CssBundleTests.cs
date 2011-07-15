@@ -79,11 +79,14 @@ namespace SquishIt.Tests
             cssBundle1.Add("/css/first.css", "/css/second.css");
             cssBundle2.Add("/css/first.css").Add("/css/second.css");
 
-            var cssBundle1Assets = cssBundle1.GroupBundles["default"].Assets;
-            var cssBundle2Assets = cssBundle1.GroupBundles["default"].Assets;
+            Framework.Base.Asset[] cssBundle1Assets = null;
+            cssBundle1.GroupBundles["default"].Assets.CopyTo(cssBundle1Assets);
 
-            Assert.AreEqual(cssBundle1Assets.Count, cssBundle2Assets.Count);
-            for (var i = 0; i < cssBundle1Assets.Count; i++)
+            Framework.Base.Asset[] cssBundle2Assets = null;
+            cssBundle2.GroupBundles["default"].Assets.CopyTo(cssBundle2Assets);
+
+            Assert.AreEqual(cssBundle1Assets.Length, cssBundle2Assets.Length);
+            for (var i = 0; i < cssBundle1Assets.Length; i++)
             {
                 var assetBundle1 = cssBundle1Assets[i];
                 var assetBundle2 = cssBundle2Assets[i];
@@ -107,11 +110,14 @@ namespace SquishIt.Tests
             cssBundle1.AddToGroup(myGroup, "/css/first.css", "/css/second.css");
             cssBundle2.AddToGroup(myGroup, "/css/first.css").AddToGroup(myGroup, "/css/second.css");
 
-            var cssBundle1Assets = cssBundle1.GroupBundles[myGroup].Assets;
-            var cssBundle2Assets = cssBundle1.GroupBundles[myGroup].Assets;
+            Framework.Base.Asset[] cssBundle1Assets = null;
+            cssBundle1.GroupBundles[myGroup].Assets.CopyTo(cssBundle1Assets);
 
-            Assert.AreEqual(cssBundle1Assets.Count, cssBundle2Assets.Count);
-            for (var i = 0; i < cssBundle1Assets.Count; i++)
+            Framework.Base.Asset[] cssBundle2Assets = null;
+            cssBundle2.GroupBundles[myGroup].Assets.CopyTo(cssBundle2Assets);
+
+            Assert.AreEqual(cssBundle1Assets.Length, cssBundle2Assets.Length);
+            for (var i = 0; i < cssBundle1Assets.Length; i++)
             {
                 var assetBundle1 = cssBundle1Assets[i];
                 var assetBundle2 = cssBundle2Assets[i];
