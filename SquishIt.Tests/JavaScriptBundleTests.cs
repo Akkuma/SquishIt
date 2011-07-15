@@ -554,5 +554,16 @@ function sum(a, b) {
 
             Assert.AreEqual("<script type=\"text/javascript\" src=\"" + Test1Path + "\"></script>\n", tag);
         }
+
+        [Test]
+        public void DuplicateAssetsAreNotAdded()
+        {
+            var tag = debugJavaScriptBundle
+                        .Add(Test1Path)
+                        .Add(Test1Path)
+                        .Render(currentOutputFile);
+
+            Assert.AreEqual("<script type=\"text/javascript\" src=\"" + Test1Path + "\"></script>\n", tag);
+        }
     }
 }
